@@ -256,11 +256,11 @@ async function handleAuth() {
   btn.disabled = true;
   btn.textContent = authMode === "signin" ? "Signing in…" : "Creating account…";
 
-  let error;
+  let error, data;
   if (authMode === "signin") {
-    ({ error } = await db.auth.signInWithPassword({ email, password }));
+    ({ error, data } = await db.auth.signInWithPassword({ email, password }));
   } else {
-    ({ error } = await db.auth.signUp({ email, password }));
+    ({ error, data } = await db.auth.signUp({ email, password }));
   }
 
   btn.disabled = false;
@@ -276,6 +276,9 @@ async function handleAuth() {
       errEl.textContent = "";
       toggleAuthMode();
     }, 4000);
+  } else if (authMode === "signin" && data?.user) {
+    currentUser = data.user;
+    await loadProfile();
   }
 }
 

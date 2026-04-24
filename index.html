@@ -315,31 +315,55 @@ db.auth.onAuthStateChange(async (event, session) => {
 });
 
 async function loadProfile() {
-  const { data, error } = await db
-    .from("profiles")
-    .select("*, households(name)")
-    .eq("id", currentUser.id)
-    .single();
+  try {
+    const { data, error } = await db
+      .from("profiles")
+      .select("*, households(name)")
+      .eq("id", currentUser.id)
+      .single();
 
-  if (error || !data) {
+    if (error) {
+      // If profile doesn't exist yet, create it
+      if (error.code === "PGRST116") {
+        const { error: insertError } = await db
+          .from("profiles")
+          .insert({ id: currentUser.id, email: currentUser.email });
+        if (!insertError) {
+          document.getElementById("user-id-display").textContent = "Your user ID: " + currentUser.id;
+          showScreen("no-household");
+        } else {
+          document.getElementById("auth-error").textContent = "Profile error: " + insertError.message;
+          showScreen("auth");
+        }
+        return;
+      }
+      document.getElementById("auth-error").textContent = "Error: " + error.message;
+      showScreen("auth");
+      return;
+    }
+
+    if (!data) {
+      showScreen("auth");
+      return;
+    }
+
+    currentProfile = data;
+
+    if (!data.household_id) {
+      document.getElementById("user-id-display").textContent = "Your user ID: " + currentUser.id;
+      showScreen("no-household");
+      return;
+    }
+
+    // All good — load app
+    document.getElementById("user-pill").textContent = currentUser.email.split("@")[0];
+    document.getElementById("hdr-sub").textContent   = data.households?.name || "Family Budget";
+    showScreen("app");
+    await loadBudgetState();
+  } catch(e) {
+    document.getElementById("auth-error").textContent = "Unexpected error: " + e.message;
     showScreen("auth");
-    return;
   }
-
-  currentProfile = data;
-
-  if (!data.household_id) {
-    // Account exists but not linked to household yet
-    document.getElementById("user-id-display").textContent = "Your user ID: " + currentUser.id;
-    showScreen("no-household");
-    return;
-  }
-
-  // All good — load app
-  document.getElementById("user-pill").textContent = currentUser.email.split("@")[0];
-  document.getElementById("hdr-sub").textContent   = data.households?.name || "Family Budget";
-  showScreen("app");
-  await loadBudgetState();
 }
 
 function showScreen(screen) {

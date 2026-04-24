@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Ciolea Budget"/>
+<meta name="theme-color" content="#0c0e14"/>
+<title>Ciolea Budget</title>
+
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0c0e14;--bg2:#131620;--bg3:#1a1f2e;--bg4:#252b3b;
+  --border:#1e2230;--border2:#2a2f3d;
+  --text:#ddd8d0;--text2:#8a9090;--text3:#4a5060;
+  --green:#4ade80;--red:#f87171;--orange:#fb923c;--purple:#c084fc;--blue:#60a5fa;
+  --font:'Palatino Linotype','Book Antiqua',Palatino,serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh}
+input,select,textarea,button{font-family:var(--font)}
+button{cursor:pointer;border:none;background:none}
+
+/* ── AUTH SCREEN ── */
+#auth-screen{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:999;padding:32px;gap:0;
+}
+.auth-logo{font-size:10px;letter-spacing:5px;color:var(--text3);text-transform:uppercase;margin-bottom:8px}
+.auth-title{font-size:28px;font-weight:400;letter-spacing:1px;margin-bottom:4px}
+.auth-sub{font-size:12px;color:var(--text3);margin-bottom:36px}
+.auth-card{width:100%;max-width:340px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px}
+.auth-label{font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;display:block}
+.auth-input{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);
+  padding:12px 14px;border-radius:10px;font-size:15px;outline:none;margin-bottom:16px;
+}
+.auth-input:focus{border-color:var(--green)}
+.auth-btn{
+  width:100%;background:var(--green);color:var(--bg);border-radius:10px;
+  padding:14px;font-size:15px;font-weight:700;letter-spacing:0.5px;margin-top:4px;
+  transition:opacity 0.2s;
+}
+.auth-btn:disabled{opacity:0.5;cursor:not-allowed}
+.auth-error{font-size:12px;color:var(--red);text-align:center;margin-top:12px;min-height:18px}
+.auth-toggle{font-size:12px;color:var(--text3);text-align:center;margin-top:16px}
+.auth-toggle span{color:var(--green);cursor:pointer;text-decoration:underline}
+.auth-info{font-size:11px;color:var(--text3);text-align:center;margin-top:20px;max-width:280px;line-height:1.6}
+
+/* ── NO HOUSEHOLD SCREEN ── */
+#no-household{
+  position:fixed;inset:0;background:var(--bg);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  z-index:998;padding:32px;text-align:center;gap:12px;
+}
+#no-household h2{font-size:20px;font-weight:400}
+#no-household p{font-size:13px;color:var(--text3);line-height:1.6;max-width:300px}
+
+/* ── MAIN APP ── */
+#app{display:none;padding-bottom:90px}
+
+/* header */
+.hdr{background:linear-gradient(160deg,#131620,var(--bg));border-bottom:1px solid var(--border);padding:22px 18px 16px}
+.hdr-top{display:flex;justify-content:space-between;align-items:flex-start;max-width:700px;margin:0 auto}
+.hdr-label{font-size:10px;letter-spacing:5px;color:var(--text3);text-transform:uppercase;margin-bottom:3px}
+.hdr-title{font-size:24px;font-weight:400;letter-spacing:1px}
+.hdr-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+select{background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:5px 10px;border-radius:8px;font-size:13px}
+.save-status{font-size:11px;min-height:16px;transition:color 0.3s}
+.user-pill{font-size:11px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);padding:3px 10px;border-radius:20px}
+
+/* summary cards */
+.cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;max-width:700px;margin-left:auto;margin-right:auto}
+.card{background:var(--bg2);border-radius:10px;padding:11px 12px;border:1px solid var(--border)}
+.card-label{font-size:9px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}
+.card-val{font-size:18px;font-weight:700;letter-spacing:-0.5px}
+.card-cur{font-size:10px;font-weight:400;color:var(--text3)}
+.prov-row{display:flex;gap:8px;margin-top:10px;max-width:700px;margin-left:auto;margin-right:auto}
+.prov-box{flex:1;border-radius:10px;padding:10px 12px}
+.prov-lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px}
+.prov-val{font-size:17px;font-weight:700}
+
+/* tabs */
+.tabs{background:#0f1118;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+.tabs-inner{max-width:700px;margin:0 auto;display:flex}
+.tab-btn{background:none;border:none;color:var(--text3);padding:13px 16px;font-size:13px;border-bottom:2px solid transparent;transition:color 0.2s,border-color 0.2s}
+.tab-btn.active{color:var(--text);border-bottom-color:var(--green)}
+
+/* content */
+.content{max-width:700px;margin:0 auto;padding:0 14px}
+.cat-header{display:flex;justify-content:space-between;align-items:center;padding:13px 0 7px}
+.cat-title{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2.5px;text-transform:uppercase}
+.cat-prov{font-size:10px;color:var(--text3)}
+.cat-total{font-size:13px;font-weight:600}
+.row-item{display:flex;gap:7px;align-items:center;background:var(--bg2);border-radius:10px;padding:9px 11px;margin-bottom:5px;border:1px solid var(--border)}
+.row-label{flex:1;background:none;border:none;color:var(--text);font-size:13px;min-width:0}
+.row-owner{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:11px;padding:3px 5px;border-radius:6px;max-width:62px}
+.row-amount{width:74px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-size:13px;padding:4px 7px;border-radius:6px;text-align:right}
+.row-cur{font-size:10px;color:var(--text3);min-width:28px}
+.row-del{color:var(--border2);font-size:18px;padding:0;line-height:1}
+.add-btn{background:none;padding:7px 14px;border-radius:8px;font-size:12px;width:100%;text-align:center;margin-bottom:6px}
+
+/* calendar */
+.cal-header{font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;padding:20px 0 14px}
+.cal-item{background:var(--bg2);border-radius:10px;padding:13px 15px;margin-bottom:7px}
+.cal-top{display:flex;justify-content:space-between;align-items:center}
+.cal-month{font-weight:600;font-size:14px}
+.cal-tags{display:flex;gap:5px;margin-top:4px}
+.cal-tag{font-size:10px;padding:2px 7px;border-radius:4px}
+.cal-vals{text-align:right}
+.cal-ch{font-size:16px;font-weight:700;color:var(--red)}
+.cal-bar-wrap{margin-top:8px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.cal-bar{height:100%;border-radius:2px;transition:width 0.6s}
+
+/* AI */
+.ai-header{font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;padding:20px 0 12px}
+.ai-quick{background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border);margin-bottom:12px}
+.ai-q-lbl{font-size:11px;color:var(--text3);margin-bottom:9px}
+.ai-q-btn{display:block;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:8px 12px;border-radius:8px;font-size:12px;width:100%;text-align:left;margin-bottom:5px}
+textarea{width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px;font-size:13px;resize:none;outline:none}
+.ai-submit{width:100%;border-radius:10px;padding:14px;font-size:15px;font-weight:700;margin-top:10px;letter-spacing:0.5px;transition:background 0.2s,color 0.2s}
+.ai-answer{background:var(--bg2);border-radius:10px;padding:16px;margin-top:14px;border:1px solid rgba(74,222,128,0.15);line-height:1.75;font-size:13px;white-space:pre-wrap}
+.ai-answer-lbl{font-size:9px;color:var(--green);letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+
+/* logout */
+#logout-btn{position:fixed;bottom:20px;right:18px;background:var(--bg3);border:1px solid var(--border2);color:var(--text3);padding:10px 16px;border-radius:50px;font-size:12px;z-index:50}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-logo">Family Budget</div>
+  <div class="auth-title">Ciolea</div>
+  <div class="auth-sub">Sign in to access your family budget</div>
+  <div class="auth-card">
+    <label class="auth-label">Email</label>
+    <input class="auth-input" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email"/>
+    <label class="auth-label">Password</label>
+    <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password"/>
+    <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Sign In</button>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-toggle" id="auth-toggle">
+      No account? <span onclick="toggleAuthMode()">Sign up</span>
+    </div>
+  </div>
+  <div class="auth-info">Your budget data is encrypted and only accessible to your household.</div>
+</div>
+
+<!-- NO HOUSEHOLD SCREEN -->
+<div id="no-household">
+  <h2>Account created ✓</h2>
+  <p>Your account is ready. Ask your household admin to link your account to the Ciolea household in Supabase.</p>
+  <p style="margin-top:8px;font-size:11px;color:var(--text3)" id="user-id-display"></p>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-top">
+      <div>
+        <div class="hdr-label">Family</div>
+        <div class="hdr-title">Ciolea</div>
+        <div class="hdr-sub" id="hdr-sub">Budget & Financial Planning</div>
+      </div>
+      <div class="hdr-right">
+        <select id="currency-sel" onchange="changeCurrency(this.value)">
+          <option>RON</option><option>EUR</option><option>DKK</option><option>USD</option>
+        </select>
+        <div class="save-status" id="save-status"></div>
+        <div class="user-pill" id="user-pill"></div>
+      </div>
+    </div>
+    <div class="cards" id="summary-cards"></div>
+    <div class="prov-row" id="prov-row"></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tabs-inner">
+      <button class="tab-btn active" onclick="switchTab('budget',this)">📊 Budget</button>
+      <button class="tab-btn" onclick="switchTab('calendar',this)">📅 Calendar</button>
+      <button class="tab-btn" onclick="switchTab('ai',this)">🤖 AI Advice</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="tab-budget"></div>
+    <div id="tab-calendar" style="display:none"></div>
+    <div id="tab-ai" style="display:none"></div>
+  </div>
+</div>
+
+<button id="logout-btn" onclick="handleLogout()" style="display:none">Sign Out</button>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIGURATION — Replace with your Supabase project values
+// Find these in: Supabase → Settings → API
+// ══════════════════════════════════════════════════════════════
+const SUPABASE_URL  = "https://krotyywlgndsujkrilsg.supabase.co";
+const SUPABASE_ANON = "sb_publishable_4WLCOkHssp__tV3qOPaoQw_xJv1TifT";
+// ══════════════════════════════════════════════════════════════
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── APP STATE ─────────────────────────────────────────────────
+const CATS = {
+  income:    { label:"Income",            color:"#4ade80", icon:"💰" },
+  monthly:   { label:"Monthly Bills",     color:"#f87171", icon:"📅" },
+  quarterly: { label:"Every 3 Months",    color:"#fb923c", icon:"🗓️" },
+  biannual:  { label:"Every 6 Months",    color:"#c084fc", icon:"📆" },
+  variable:  { label:"Variable Expenses", color:"#60a5fa", icon:"🛒" },
+  savings:   { label:"Savings Goal",      color:"#34d399", icon:"🎯" },
+};
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DEFAULT_ROWS = [
+  {id:"r1",  cat:"income",    label:"My income",         owner:"me",      amount:""},
+  {id:"r2",  cat:"income",    label:"Partner's income",  owner:"partner", amount:""},
+  {id:"r3",  cat:"monthly",   label:"Rent / Mortgage",   owner:"shared",  amount:""},
+  {id:"r4",  cat:"monthly",   label:"Electricity",       owner:"shared",  amount:""},
+  {id:"r5",  cat:"monthly",   label:"Internet & Phone",  owner:"shared",  amount:""},
+  {id:"r6",  cat:"monthly",   label:"Subscriptions",     owner:"shared",  amount:""},
+  {id:"r7",  cat:"quarterly", label:"Health insurance",  owner:"shared",  amount:""},
+  {id:"r8",  cat:"biannual",  label:"Car insurance",     owner:"shared",  amount:""},
+  {id:"r9",  cat:"variable",  label:"Groceries",         owner:"shared",  amount:""},
+  {id:"r10", cat:"variable",  label:"Transport",         owner:"shared",  amount:""},
+  {id:"r11", cat:"variable",  label:"Children",          owner:"shared",  amount:""},
+  {id:"r12", cat:"variable",  label:"Health & Pharmacy", owner:"shared",  amount:""},
+  {id:"r13", cat:"variable",  label:"Entertainment",     owner:"shared",  amount:""},
+  {id:"r14", cat:"savings",   label:"Emergency fund",    owner:"shared",  amount:""},
+];
+
+let appState = { rows: JSON.parse(JSON.stringify(DEFAULT_ROWS)), nextId: 100, currency: "RON" };
+let currentUser = null;
+let currentProfile = null;
+let saveTimer = null;
+let authMode = "signin"; // or "signup"
+
+// ── AUTH ──────────────────────────────────────────────────────
+async function handleAuth() {
+  const email    = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const btn      = document.getElementById("auth-btn");
+  const errEl    = document.getElementById("auth-error");
+
+  errEl.textContent = "";
+  if (!email || !password) { errEl.textContent = "Please enter email and password."; return; }
+
+  btn.disabled = true;
+  btn.textContent = authMode === "signin" ? "Signing in…" : "Creating account…";
+
+  let error;
+  if (authMode === "signin") {
+    ({ error } = await db.auth.signInWithPassword({ email, password }));
+  } else {
+    ({ error } = await db.auth.signUp({ email, password }));
+  }
+
+  btn.disabled = false;
+  btn.textContent = authMode === "signin" ? "Sign In" : "Create Account";
+
+  if (error) {
+    errEl.textContent = error.message;
+  } else if (authMode === "signup") {
+    errEl.style.color = "var(--green)";
+    errEl.textContent = "Account created! Check your email to confirm, then sign in.";
+    setTimeout(() => {
+      errEl.style.color = "var(--red)";
+      errEl.textContent = "";
+      toggleAuthMode();
+    }, 4000);
+  }
+}
+
+function toggleAuthMode() {
+  authMode = authMode === "signin" ? "signup" : "signin";
+  document.getElementById("auth-btn").textContent    = authMode === "signin" ? "Sign In" : "Create Account";
+  document.getElementById("auth-toggle").innerHTML   = authMode === "signin"
+    ? 'No account? <span onclick="toggleAuthMode()">Sign up</span>'
+    : 'Have an account? <span onclick="toggleAuthMode()">Sign in</span>';
+  document.getElementById("auth-error").textContent  = "";
+}
+
+async function handleLogout() {
+  await db.auth.signOut();
+}
+
+// Allow Enter key on auth inputs
+["auth-email","auth-password"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", e => {
+    if (e.key === "Enter") handleAuth();
+  });
+});
+
+// ── SESSION LISTENER ──────────────────────────────────────────
+db.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    await loadProfile();
+  } else {
+    currentUser = null;
+    currentProfile = null;
+    showScreen("auth");
+  }
+});
+
+async function loadProfile() {
+  const { data, error } = await db
+    .from("profiles")
+    .select("*, households(name)")
+    .eq("id", currentUser.id)
+    .single();
+
+  if (error || !data) {
+    showScreen("auth");
+    return;
+  }
+
+  currentProfile = data;
+
+  if (!data.household_id) {
+    // Account exists but not linked to household yet
+    document.getElementById("user-id-display").textContent = "Your user ID: " + currentUser.id;
+    showScreen("no-household");
+    return;
+  }
+
+  // All good — load app
+  document.getElementById("user-pill").textContent = currentUser.email.split("@")[0];
+  document.getElementById("hdr-sub").textContent   = data.households?.name || "Family Budget";
+  showScreen("app");
+  await loadBudgetState();
+}
+
+function showScreen(screen) {
+  document.getElementById("auth-screen").style.display    = screen === "auth"          ? "flex"  : "none";
+  document.getElementById("no-household").style.display   = screen === "no-household"  ? "flex"  : "none";
+  document.getElementById("app").style.display            = screen === "app"           ? "block" : "none";
+  document.getElementById("logout-btn").style.display     = screen === "app"           ? "block" : "none";
+}
+
+// ── SUPABASE BUDGET STATE ─────────────────────────────────────
+async function loadBudgetState() {
+  setSaveStatus("Loading…", "#60a5fa");
+  const { data, error } = await db
+    .from("budget_state")
+    .select("state")
+    .eq("household_id", currentProfile.household_id)
+    .single();
+
+  if (data?.state && !error) {
+    const s = data.state;
+    if (s.rows)     appState.rows     = s.rows;
+    if (s.nextId)   appState.nextId   = s.nextId;
+    if (s.currency) {
+      appState.currency = s.currency;
+      document.getElementById("currency-sel").value = s.currency;
+    }
+  }
+  setSaveStatus("", "");
+  renderAll();
+}
+
+function saveData() {
+  clearTimeout(saveTimer);
+  setSaveStatus("Saving…", "#fb923c");
+  saveTimer = setTimeout(async () => {
+    const { error } = await db
+      .from("budget_state")
+      .upsert({ household_id: currentProfile.household_id, state: appState, updated_at: new Date().toISOString() },
+               { onConflict: "household_id" });
+    if (error) {
+      setSaveStatus("Save error", "#f87171");
+    } else {
+      setSaveStatus("✓ Synced", "#4ade80");
+      setTimeout(() => setSaveStatus("", ""), 2500);
+    }
+  }, 800);
+}
+
+function setSaveStatus(text, color) {
+  const el = document.getElementById("save-status");
+  el.textContent = text;
+  el.style.color = color;
+}
+
+// ── CALCULATIONS ──────────────────────────────────────────────
+function num(v) { const x = parseFloat(String(v).replace(",",".")); return isNaN(x) ? 0 : x; }
+
+function calcTotals() {
+  const by = {};
+  Object.keys(CATS).forEach(k => by[k] = 0);
+  appState.rows.forEach(r => {
+    const v = num(r.amount);
+    if (r.cat === "quarterly") by[r.cat] += v / 3;
+    else if (r.cat === "biannual") by[r.cat] += v / 6;
+    else by[r.cat] += v;
+  });
+  const totalIncome = by.income;
+  const totalExp    = by.monthly + by.quarterly + by.biannual + by.variable + by.savings;
+  const provQ = appState.rows.filter(r => r.cat === "quarterly").reduce((s,r) => s + num(r.amount)/3, 0);
+  const provB = appState.rows.filter(r => r.cat === "biannual").reduce((s,r) => s + num(r.amount)/6, 0);
+  return { by, totalIncome, totalExp, balance: totalIncome - totalExp, provQ, provB };
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function renderAll() {
+  const c = calcTotals();
+  renderSummary(c);
+  renderBudget(c);
+  renderCalendar(c);
+}
+
+function renderSummary(c) {
+  const cur = appState.currency;
+  const bc  = c.balance >= 0 ? "#4ade80" : "#f87171";
+  document.getElementById("summary-cards").innerHTML = [
+    { label:"Income",   val: c.totalIncome, color:"#4ade80" },
+    { label:"Expenses", val: c.totalExp,    color:"#f87171" },
+    { label:"Balance",  val: c.balance,     color: bc },
+  ].map(x => `
+    <div class="card">
+      <div class="card-label">${x.label}</div>
+      <div class="card-val" style="color:${x.color}">${x.val.toFixed(0)} <span class="card-cur">${cur}/mo</span></div>
+    </div>`).join("");
+
+  let provHTML = "";
+  if (c.provQ > 0) provHTML += `
+    <div class="prov-box" style="background:#fb923c0e;border:1px solid #fb923c25">
+      <div class="prov-lbl" style="color:#fb923c">Set aside / month → quarterly bills</div>
+      <div class="prov-val" style="color:#fb923c">${c.provQ.toFixed(0)} ${cur}</div>
+    </div>`;
+  if (c.provB > 0) provHTML += `
+    <div class="prov-box" style="background:#c084fc0e;border:1px solid #c084fc25">
+      <div class="prov-lbl" style="color:#c084fc">Set aside / month → biannual bills</div>
+      <div class="prov-val" style="color:#c084fc">${c.provB.toFixed(0)} ${cur}</div>
+    </div>`;
+  document.getElementById("prov-row").innerHTML = provHTML;
+}
+
+function renderBudget(c) {
+  const cur = appState.currency;
+  let html = '<div style="padding-top:14px">';
+  Object.entries(CATS).forEach(([catKey, catInfo]) => {
+    const catRows = appState.rows.filter(r => r.cat === catKey);
+    const total   = catRows.reduce((s,r) => {
+      const v = num(r.amount);
+      return s + (catKey==="quarterly" ? v/3 : catKey==="biannual" ? v/6 : v);
+    }, 0);
+    const provNote = (catKey==="quarterly"||catKey==="biannual")
+      ? `<span class="cat-prov">→ ${total.toFixed(0)} ${cur}/mo</span>` : "";
+    html += `
+      <div class="cat-header">
+        <div class="cat-title" style="color:${catInfo.color}">${catInfo.icon} ${catInfo.label} ${provNote}</div>
+        <div class="cat-total" style="color:${catInfo.color}">${total.toFixed(0)} ${cur}</div>
+      </div>`;
+    catRows.forEach(row => {
+      html += `
+        <div class="row-item">
+          <input class="row-label" value="${escHtml(row.label)}"
+            onchange="updateRow('${row.id}','label',this.value)"
+            onblur="updateRow('${row.id}','label',this.value)"/>
+          <select class="row-owner" onchange="updateRow('${row.id}','owner',this.value)">
+            <option value="me"      ${row.owner==="me"      ?"selected":""}>Me</option>
+            <option value="partner" ${row.owner==="partner" ?"selected":""}>Partner</option>
+            <option value="shared"  ${row.owner==="shared"  ?"selected":""}>Shared</option>
+          </select>
+          <input class="row-amount" type="number" value="${escHtml(row.amount)}" placeholder="0"
+            oninput="updateRow('${row.id}','amount',this.value)"/>
+          <span class="row-cur">${cur}</span>
+          <button class="row-del" onclick="removeRow('${row.id}')">×</button>
+        </div>`;
+    });
+    html += `<button class="add-btn" style="border:1px dashed ${catInfo.color}30;color:${catInfo.color}"
+      onclick="addRow('${catKey}')">+ Add ${catInfo.label.toLowerCase()}</button>`;
+  });
+  html += "</div>";
+  document.getElementById("tab-budget").innerHTML = html;
+}
+
+function renderCalendar(c) {
+  const cur   = appState.currency;
+  const trimM = [2,5,8,11], semM = [5,11];
+  let html = '<div class="cal-header">Monthly forecast — actual expenses per month</div>';
+  MONTHS.forEach((m, i) => {
+    const extraQ = trimM.includes(i) ? appState.rows.filter(r=>r.cat==="quarterly").reduce((s,r)=>s+num(r.amount),0) : 0;
+    const extraB = semM.includes(i)  ? appState.rows.filter(r=>r.cat==="biannual").reduce((s,r)=>s+num(r.amount),0) : 0;
+    const ch  = c.by.monthly + c.by.variable + c.by.savings + extraQ + extraB;
+    const bal = c.totalIncome - ch;
+    const pct = c.totalIncome > 0 ? Math.min(100,(ch/c.totalIncome)*100) : 0;
+    const balColor    = bal >= 0 ? "#4ade80" : "#f87171";
+    const borderColor = semM.includes(i) ? "#c084fc35" : trimM.includes(i) ? "#fb923c35" : "#1e2230";
+    html += `
+      <div class="cal-item" style="border-color:${borderColor}">
+        <div class="cal-top">
+          <div>
+            <div class="cal-month">${m}</div>
+            <div class="cal-tags">
+              ${semM.includes(i)  ? '<span class="cal-tag" style="background:#c084fc15;color:#c084fc">Biannual bill</span>'  : ""}
+              ${trimM.includes(i) ? '<span class="cal-tag" style="background:#fb923c15;color:#fb923c">Quarterly bill</span>' : ""}
+            </div>
+          </div>
+          <div class="cal-vals">
+            <div class="cal-ch">${ch.toFixed(0)} ${cur}</div>
+            <div style="font-size:11px;color:${balColor}">${bal>=0?"+":""}${bal.toFixed(0)} ${cur}</div>
+          </div>
+        </div>
+        <div class="cal-bar-wrap">
+          <div class="cal-bar" style="width:${pct}%;background:${balColor}"></div>
+        </div>
+      </div>`;
+  });
+  document.getElementById("tab-calendar").innerHTML = html;
+}
+
+function renderAI() {
+  document.getElementById("tab-ai").innerHTML = `
+    <div class="ai-header">AI Financial Advisor — Ciolea Family</div>
+    <div class="ai-quick">
+      <div class="ai-q-lbl">Quick questions:</div>
+      ${["How is our monthly budget looking?",
+         "Are we prepared for months with big bills?",
+         "What expenses could we reduce?",
+         "What % of income do we spend?",
+         "How much should we be saving?"]
+        .map(q=>`<button class="ai-q-btn" onclick="setAIQ(this)">${q}</button>`).join("")}
+    </div>
+    <textarea id="ai-input" rows="3" placeholder="Ask anything about your family budget…"></textarea>
+    <button class="ai-submit" id="ai-btn" onclick="askAI()" style="background:#4ade80;color:#0c0e14">
+      Analyze & Advise
+    </button>
+    <div id="ai-answer"></div>`;
+}
+
+function setAIQ(btn) { document.getElementById("ai-input").value = btn.textContent; }
+
+async function askAI() {
+  const q   = document.getElementById("ai-input").value.trim();
+  if (!q) return;
+  const btn = document.getElementById("ai-btn");
+  btn.style.background = "#1a1f2e"; btn.style.color = "#4a5060";
+  btn.textContent = "Analyzing…"; btn.disabled = true;
+  const c = calcTotals();
+  const summary = {
+    income: c.totalIncome, monthlyBills: c.by.monthly, variable: c.by.variable,
+    quarterlyProvision: c.provQ, biannualProvision: c.provB,
+    savings: c.by.savings, monthlyBalance: c.balance, currency: appState.currency,
+    items: appState.rows.map(r => ({ category: r.cat, name: r.label, amount: r.amount, owner: r.owner })),
+  };
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: `You are the financial advisor for the Ciolea family. Reply in English, directly and practically. Family budget: ${JSON.stringify(summary)}. Give concrete advice without repeating data.`,
+        messages: [{ role: "user", content: q }]
+      })
+    });
+    const data = await res.json();
+    const answer = data.content?.[0]?.text || "Could not generate a response.";
+    document.getElementById("ai-answer").innerHTML = `
+      <div class="ai-answer">
+        <div class="ai-answer-lbl">Advisor's Analysis</div>
+        ${escHtml(answer).replace(/\n/g,"<br>")}
+      </div>`;
+  } catch(e) {
+    document.getElementById("ai-answer").innerHTML =
+      `<div class="ai-answer" style="color:var(--red)">Connection error. Please try again.</div>`;
+  }
+  btn.style.background = "#4ade80"; btn.style.color = "#0c0e14";
+  btn.textContent = "Analyze & Advise"; btn.disabled = false;
+}
+
+// ── ROW ACTIONS ───────────────────────────────────────────────
+function updateRow(id, field, value) {
+  const row = appState.rows.find(r => r.id === id);
+  if (row) { row[field] = value; saveData(); renderSummary(calcTotals()); renderCalendar(calcTotals()); }
+}
+function addRow(cat) {
+  appState.rows.push({ id: "r" + appState.nextId++, cat, label: "New item", owner: "shared", amount: "" });
+  saveData(); renderAll();
+}
+function removeRow(id) {
+  appState.rows = appState.rows.filter(r => r.id !== id);
+  saveData(); renderAll();
+}
+function changeCurrency(val) {
+  appState.currency = val; saveData(); renderAll();
+}
+function switchTab(tab, btn) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  ["budget","calendar","ai"].forEach(t => {
+    document.getElementById("tab-"+t).style.display = t === tab ? "block" : "none";
+  });
+  if (tab === "ai") renderAI();
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
